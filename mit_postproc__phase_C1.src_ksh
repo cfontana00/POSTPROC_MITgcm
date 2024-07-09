@@ -1,0 +1,94 @@
+#!/bin/ksh
+# This script executes the postprocess
+# phase C1: packing output data 
+
+# Load common profile
+. @@(I:MIT_HOME)/bin/mit_profile.inc
+
+# Load MPI profile:
+. $MIT_SCRDIR/mit_mpi.inc
+
+# Rundate definition
+mit_set_run
+
+# start
+mit_start
+mit_prex "source $MIT_VENV_1/bin/activate"
+
+export PYTHONPATH=${PYTHONPATH}:$MIT_BITSEA
+typeset -i errors=0
+
+
+MIT_POSTPROC=$MIT_WRKDIR/POSTPROC
+
+mit_mkdir "$MIT_POSTPROC"
+mit_mkdir "$MIT_POSTPROC/IMG"
+
+mit_prex "rm $MIT_POSTPROC/postproc_done.txt"
+
+RUNDIR=$MIT_WRKDIR/MODEL/run
+TMPDIR=$MIT_WRKDIR/POSTPROC/TMP
+NETCDF_DIR=$MIT_WRKDIR/POSTPROC/AVE
+PRODUCTS=$MIT_WRKDIR/POSTPROC/PRODUCTS
+TARDIR=$MIT_WRKDIR/POSTPROC/tars
+
+mit_mkdir $TMPDIR
+mit_mkdir $NETCDF_DIR
+mit_mkdir $PRODUCTS
+
+OUTPUTDIR=$MIT_POSTPROC/IMG
+
+FC_LENGTH="$MIT_WRKDIR/MODEL/fc_length.txt"
+while IFS=: read line;
+do
+    if [ $line -eq "2" ];then
+	fc_hours=47
+	echo "adjusting forecast length to 2"
+    else
+	fc_hours=71
+    fi
+    fc_num_days=$line
+done < $FC_LENGTH
+
+MASKFILE=$MIT_WRKDIR/POSTPROC/meshmask.nc
+mit_prex_or_die "srun -n 1 python -m mpi4py $MIT_POSTPROCDIR/mask_gen.py -i $MIT_WRKDIR/MODEL/run -m $MIT_WRKDIR/BC_IC/mask.nc -o $MASKFILE"
+
+VARLIST=$MIT_ETCDIR/static-data/POSTPROC/merging_varlist
+VARDESCRIPTOR=$MIT_ETCDIR/static-data/POSTPROC/VarDescriptor.xml
+
+
+fc_hours=244
+
+
+# Get offset by extracting first file iteration number
+# ----------------------------------------------------
+first_file=`ls $RUNDIR/T.*data | head -n 1`
+first_file=`basename $first_file`
+niter0=`echo $first_file | sed 's/[^0-9]*//g'`
+
+
+VAR_TO_OUTPUT=$MIT_POSTPROCDIR/var_to_output.xls
+cp $MIT_ETCDIR/static-data/NWMED/coord.nc $MIT_WRKDIR/BC_IC/
+
+# Clean directory
+rm $PRODUCTS/*.nc
+
+
+mit_prex_or_die "srun -n 1 python -m mpi4py $MIT_POSTPROCDIR/post_proc.py $RUNDIR $PRODUCTS $MIT_RUNDATE 36 $MIT_DAYS $VAR_TO_OUTPUT $MIT_WRKDIR/BC_IC/mask.nc $MIT_WRKDIR/BC_IC/coord.nc"
+
+
+mit_prex_or_die "rm -rf $NETCDF_DIR"
+mit_prex_or_die "rm -rf $TMPDIR"
+mit_prex_or_die "rm -rf $OUTPUTDIR"
+
+mit_mkdir "/ec/res4/scratch/itfc/MITgcm_products/outputs/$MIT_RUNDATE"
+mit_prex_or_die "mv $PRODUCTS/*fc-v01.nc /ec/res4/scratch/itfc/MITgcm_products/outputs/$MIT_RUNDATE/"
+mit_prex_or_die "rm -rf $PRODUCTS"
+
+mit_prex_or_die "touch $MIT_POSTPROC/postproc_done.txt"
+
+
+mit_exit "$errors"
+
+
+
