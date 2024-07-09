@@ -1,8 +1,6 @@
 # ---------------------------- #
 # Post processing binary files #
 # ---------------------------- #
-
-
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -120,6 +118,8 @@ for i in range(0,sheet['Model name'].shape[0]):
            data = np.zeros(sz*sy*sx)
            for i in range(3,7):
              data += np.fromfile('Z'+str(i)+'c.'+str(n)+'.data',dtype='float32')
+
+           data = data/12.
 
 
          # Generic case
