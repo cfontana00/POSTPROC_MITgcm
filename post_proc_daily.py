@@ -20,6 +20,8 @@ import datetime as dt
 from netCDF4 import Dataset
 import xarray as xr
 
+print('here')
+
 # Get Arguments
 # -------------
 idir = sys.argv[1]
@@ -101,7 +103,7 @@ for i in range(0,sheet['Model name'].shape[0]):
 
       # Loop on hours
       # -------------
-      for hour in range(0,24):
+      for hour in range(0,1):
 
          n = int(day*freq*24+float(n_ini)+hour*freq)
          n = str(n).zfill(10)
@@ -169,7 +171,7 @@ for i in range(0,sheet['Model name'].shape[0]):
         dataset = Dataset(fname,'w',format='NETCDF4_CLASSIC')
 
         # Create dimension
-        dtime = dataset.createDimension('time',24)
+        dtime = dataset.createDimension('time',1)
         ddepth = dataset.createDimension('depth',sz)
         dlat = dataset.createDimension('latitude',sy)
         dlon = dataset.createDimension('longitude',sx)
@@ -210,7 +212,7 @@ for i in range(0,sheet['Model name'].shape[0]):
         dori = dt.datetime(1900,1,1).toordinal()
         hori = (jd - dori )*24
 
-        time = range(hori,hori+24)
+        time = hori
         vtime[:] = time
 
       else:
